@@ -7,7 +7,7 @@ const visitedWithSteps = new Map<string, number>();
 const stepsToIntersection: number[] = [];
 paths.forEach((path, idx) => tracePath(path, idx === 0));
 
-console.log(`The closest intersection is ${stepsToIntersection.sort((a, b) => a < b ? -1 : 1)[0]}`);
+console.log(`The closest is ${stepsToIntersection.sort((a, b) => a < b ? -1 : 1)[0]} steps from the root`);
 
 function tracePath(path: string, ignoreCollision: boolean) {
     const vectors = {
