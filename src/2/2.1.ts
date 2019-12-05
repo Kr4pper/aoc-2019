@@ -13,16 +13,16 @@ const nextIntcodeState = (band: number[], position: number): number[] => {
     return copy;
 }
 
-let position = 0;
+let offset = 0;
 let band = _1202input;
 let next;
 
 while (true) {
-    next = nextIntcodeState(band, position);
+    next = nextIntcodeState(band, offset);
     if (next === band) break;
     
     band = next;
-    position += 4;
+    offset += 4;
 }
 
 console.log(`Final value at position 0: ${next[0]}`)
