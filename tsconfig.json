@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "rootDir": "src",
+        "outDir": "dist",
+        "module": "commonjs",
+        "lib": ["ESNext"],
+        "target": "ES5",
+        "noImplicitAny": true,
+        "downlevelIteration": true
+    }
+}
