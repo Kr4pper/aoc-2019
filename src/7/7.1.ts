@@ -15,7 +15,7 @@ const intCode = fs.readFileSync(path.join(__dirname, '7.input'), {encoding: 'utf
                         const output = new IOContainer([]);
                         await interpretIntcode(intCode, new IOContainer([phase, await last]), output);
                         return await output.read();
-                    }, Promise.resolve(0))
+                    }, Promise.resolve(0n))
                 ])
         )
     ).sort((a, b) => a[1] < b[1] ? 1 : -1)[0];

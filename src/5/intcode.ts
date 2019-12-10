@@ -1,13 +1,14 @@
 enum OpCodes {
-    Halt = 99,
     Add = 1,
-    Multiply = 2,
-    Read = 3,
-    Write = 4,
-    JumpIfTrue = 5,
-    JumpIfFalse = 6,
-    LessThan = 7,
-    Equals = 8,
+    Multiply,
+    Read,
+    Write,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
+    RelativeBaseOffset,
+    Halt = 99,
 }
 
 interface Operation {
@@ -18,7 +19,10 @@ interface Operation {
 enum ParameterModes {
     Position,
     Immediate,
+    Relative,
 }
+
+type BigIntTable = {[idx: number]: bigint};
 
 /**
  ABCDE
@@ -31,15 +35,15 @@ enum ParameterModes {
                                     omitted due to being a leading zero
     @returns [opCode, modes[]]
  */
-const decodeOperation = (operation: number): [OpCodes, ParameterModes[]] => {
-    const opCode = operation % 100;
-    const modes = String(operation).slice(0, -2).split('').reverse().map(v => +v);
+const decodeOperation = (operation: bigint): [OpCodes, ParameterModes[]] => {
+    const _operation = String(operation);
+    const opCode = +_operation.slice(-2);
+    const modes = _operation.slice(0, -2).split('').reverse().map(Number);
     return [opCode, modes];
 };
 
 const getOpSize = (opCode: OpCodes) => {
     switch (opCode) {
-        case OpCodes.Halt: return 1;
         case OpCodes.Add: return 4;
         case OpCodes.Multiply: return 4;
         case OpCodes.Read: return 2;
@@ -48,101 +52,101 @@ const getOpSize = (opCode: OpCodes) => {
         case OpCodes.JumpIfFalse: return 3;
         case OpCodes.LessThan: return 4;
         case OpCodes.Equals: return 4;
+        case OpCodes.RelativeBaseOffset: return 2;
+        case OpCodes.Halt: return 0;
     }
 }
-
-const readBand = (band: number[], offset: number, mode: ParameterModes = ParameterModes.Position) => {
-    switch (mode) {
-        case ParameterModes.Position:
-            return band[band[offset]];
-        case ParameterModes.Immediate:
-            return band[offset];
-    }
-}
-
-const writeBand = (band: number[], offset: number, value: number) => band[band[offset]] = value;
 
 const range = (length: number) => Array.from({length}, (_, i) => i);
 
 export const interpretIntcode = async (intCode: string, input: IOContainer, output: IOContainer): Promise<void> => {
-    const nextIntcodeState = async (band: number[], offset: number): Promise<[number[], number]> => {
-        const [opCode, modes] = decodeOperation(band[offset]);
-        const copy = [...band];
-        const parameters = range(getOpSize(opCode) - 1).map(i => readBand(copy, offset + i + 1, modes[i]));
+    const readBand = (relativeOffset: number = 0, mode: ParameterModes = ParameterModes.Position) => {
+        const address = band[offset + relativeOffset];
+        switch (mode) {
+            case ParameterModes.Position:
+                return band[Number(address)] || 0n;
+            case ParameterModes.Immediate:
+                return BigInt(address);
+            case ParameterModes.Relative:
+                return band[relativeBase + Number(address)] || 0n;
+        }
+    }
 
+    const writeBand = (value: number | bigint, relativeOffset: number = 0, mode: ParameterModes = ParameterModes.Position) =>
+        band[Number(band[offset + relativeOffset]) + (mode === ParameterModes.Relative ? relativeBase : 0)] = BigInt(value);
+
+    let offset = 0;
+    let relativeBase = 0;
+    let band: BigIntTable = intCode.split(',').reduce((res, value, idx) => ({...res, [idx]: BigInt(value)}), {});
+
+    while (true) {
+        const [opCode, modes] = decodeOperation(band[offset]);
+        const parameters = range(getOpSize(opCode) - 1).map(i => readBand(i + 1, modes[i]));
         let newOffset = offset + getOpSize(opCode);
+
         switch (opCode) {
             case OpCodes.Halt:
-                return [band, newOffset];
+                return;
             case OpCodes.Add:
-                writeBand(copy, offset + 3, parameters[0] + parameters[1]);
+                writeBand(parameters[0] + parameters[1], 3, modes[2]);
                 break;
             case OpCodes.Multiply:
-                writeBand(copy, offset + 3, parameters[0] * parameters[1]);
+                writeBand(parameters[0] * parameters[1], 3, modes[2]);
                 break;
             case OpCodes.Read:
-                writeBand(copy, offset + 1, await input.read());
+                writeBand(await input.read(), 1, modes[0]);
                 break;
             case OpCodes.Write:
                 //console.log('OUT:', parameters[0]);
                 output.write(parameters[0]);
                 break;
             case OpCodes.JumpIfTrue:
-                if (parameters[0] !== 0) newOffset = parameters[1];
+                if (parameters[0] !== 0n) newOffset = Number(parameters[1]);
                 break;
             case OpCodes.JumpIfFalse:
-                if (parameters[0] === 0) newOffset = parameters[1];
+                if (parameters[0] === 0n) newOffset = Number(parameters[1]);
                 break;
             case OpCodes.LessThan:
-                writeBand(copy, offset + 3, parameters[0] < parameters[1] ? 1 : 0);
+                writeBand(parameters[0] < parameters[1] ? 1 : 0, 3, modes[2]);
                 break;
             case OpCodes.Equals:
-                writeBand(copy, offset + 3, parameters[0] === parameters[1] ? 1 : 0);
+                writeBand(parameters[0] === parameters[1] ? 1 : 0, 3, modes[2]);
+                break;
+            case OpCodes.RelativeBaseOffset:
+                relativeBase += Number(parameters[0]);
                 break;
             default:
                 console.log('Unhandled opCode', opCode);
+                throw new Error(opCode);
         }
-        return [copy, newOffset];
-    }
 
-    let offset = 0;
-    let band = intCode.split(',').map(v => +v);
-    let next;
-    const outputs = [];
-
-    while (true) {
-        [next, offset] = await nextIntcodeState(band, offset);
-        if (output) outputs.push(output);
-        if (next === band) return
-
-        band = next;
+        offset = newOffset;
     }
 }
 
 export class IOContainer {
-    private state: number[] = [...this.input];
+    private state: bigint[] = [...this.input].map(BigInt);
     private position: number = 0;
     private isWaiting: boolean = false;
-    private signal: any = undefined;
+    private unblock: () => void;
 
-    constructor(private input: number[] = []) {}
+    constructor(private input: (number | bigint)[] = []) {}
 
-    write(value: number) {
+    write(value: bigint) {
         this.state.push(value);
-        
+
         if (this.isWaiting) {
-            this.signal();
+            this.unblock();
             this.isWaiting = false;
-            this.signal = undefined;
+            this.unblock = undefined;
         }
     }
 
     async read() {
         if (this.position < this.state.length) return this.state[this.position++];
         if (this.isWaiting) throw new Error('does not support two reads at once');
-
         this.isWaiting = true;
-        await new Promise(res => this.signal = res);
+        await new Promise(resolve => this.unblock = resolve);
         return this.state[this.position++];
     }
 }

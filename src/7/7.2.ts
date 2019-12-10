@@ -21,7 +21,7 @@ const appendIoContainers = (phases: number[]): [number[], IOContainer[]] => [
         await Promise.all(
             permute([5, 6, 7, 8, 9])
                 .map(appendIoContainers)
-                .map(async ([phases, units]): Promise<[number[], number]> => {
+                .map(async ([phases, units]): Promise<[number[], bigint]> => {
                     await Promise.all(units.map((unit, idx) => interpretIntcode(intCode, unit, units[(idx + 1) % 5])));
                     return [phases, await units[0].read()];
                 })

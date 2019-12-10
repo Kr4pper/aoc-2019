@@ -4,7 +4,7 @@
         "outDir": "dist",
         "module": "commonjs",
         "lib": ["ESNext"],
-        "target": "ES5",
+        "target": "ESNext",
         "noImplicitAny": true,
         "downlevelIteration": true
     }
