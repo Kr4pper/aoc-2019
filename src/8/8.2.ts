@@ -16,10 +16,10 @@ const chunks = chunk(input.split(''), width * height);
 const image = Array.from({length: height}).map(() => Array.from({length: width}));
 
 chunks.forEach(chunk => chunk.map((value, idx) => {
-    const x = Math.floor(idx / width);
-    const y = idx % width;
-    if (image[x][y] || value === '2') return;
-    image[x][y] = value === '1' ? 'X' : ' ';
+    const y = Math.floor(idx / width);
+    const x = idx % width;
+    if (image[y][x] || value === '2') return;
+    image[y][x] = value === '1' ? 'X' : ' ';
 }));
 
 console.log(image.map(line => line.join('')).join('\n'));

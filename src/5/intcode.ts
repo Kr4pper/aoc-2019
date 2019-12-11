@@ -132,8 +132,8 @@ export class IOContainer {
 
     constructor(private input: (number | bigint)[] = []) {}
 
-    write(value: bigint) {
-        this.state.push(value);
+    write(value: number | bigint) {
+        this.state.push(BigInt(value));
 
         if (this.isWaiting) {
             this.unblock();
