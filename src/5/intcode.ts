@@ -97,7 +97,7 @@ export const interpretIntcode = async (intCode: string, input: IOContainer, outp
                 writeBand(await input.read(), 1, modes[0]);
                 break;
             case OpCodes.Write:
-                //console.log('OUT:', parameters[0]);
+                // console.log('OUT:', parameters[0]);
                 output.write(parameters[0]);
                 break;
             case OpCodes.JumpIfTrue:
@@ -131,6 +131,15 @@ export class IOContainer {
     private unblock: () => void;
 
     constructor(private input: (number | bigint)[] = []) {}
+
+    clear() { 
+        this.position = 0;
+        this.state = [];
+    }
+
+    get empty() {
+        return this.position === this.state.length;
+    }
 
     write(value: number | bigint) {
         this.state.push(BigInt(value));
